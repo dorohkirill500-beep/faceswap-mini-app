@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>FaceSwap Mini App</title>
+  <!-- 🎨 Подключаем Telegram WebApp SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    /* 🎨 Стили, которые автоматически подстроятся под тему Телеграма */
+    :root {
+      --bg-color: var(--tg-theme-bg-color, #fff);
+      --text-color: var(--tg-theme-text-color, #000);
+      --hint-color: var(--tg-theme-hint-color, #999);
+      --button-color: var(--tg-theme-button-color, #3390ec);
+      --button-text-color: var(--tg-theme-button-text-color, #fff);
+    }
+    body {
+      margin: 0;
+      padding: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      user-select: none;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 16px;
+      text-align: center;
+    }
+    .section {
+      margin-bottom: 24px;
+    }
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: var(--text-color);
+    }
+    /* 🎬 Галерея видео */
+    .video-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+    .video-item {
+      position: relative;
+      aspect-ratio: 9/16;
+      background: #eee;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 3px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .video-item.selected {
+      border-color: var(--button-color);
+    }
+    .video-item video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      pointer-events: none;
+    }
+    .video-item .play-icon {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 40px;
+      background: rgba(0,0,0,0.6);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 18px;
+    }
+    /* 📸 Загрузка фото */
+    .upload-area {
+      border: 2px dashed var(--hint-color);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .upload-area:hover {
+      border-color: var(--button-color);
+    }
+    .upload-area input {
+      display: none;
+    }
+    .upload-preview {
+      margin-top: 12px;
+      text-align: center;
+    }
+    .upload-preview img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 12px;
+      display: none;
+    }
+    /* 👁️ Предпросмотр результата */
+    .result-preview {
+      display: none;
+      text-align: center;
+    }
+    .result-preview video {
+      max-width: 100%;
+      border-radius: 12px;
+      margin-bottom: 12px;
+    }
+    /* 🔘 Кнопки */
+    .btn {
+      width: 100%;
+      padding: 14px;
+      background-color: var(--button-color);
+      color: var(--button-text-color);
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background-color: var(--hint-color);
+    }
+    /* 📝 Статус */
+    .status {
+      text-align: center;
+      color: var(--hint-color);
+      font-size: 14px;
+      margin: 8px 0;
+      min-height: 20px;
+    }
+    /* 🎯 Скрытые блоки */
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎭 FaceSwap</h1>
+
+  <!-- 🔹 Шаг 1: Выбор видео -->
+  <div class="section" id="step1">
+    <div class="section-title">1️⃣ Выберите видео</div>
+    <div class="video-grid" id="videoGrid">
+      <!-- Видео добавляются через JS -->
+    </div>
+  </div>
+
+  <!-- 🔹 Шаг 2: Загрузка фото -->
+  <div class="section hidden" id="step2">
+    <div class="section-title">2️⃣ Загрузите фото</div>
+    <label class="upload-area" id="uploadArea">
+      <input type="file" id="photoInput" accept="image/*" />
+      <div>📸 Нажмите или перетащите фото</div>
+      <div style="font-size:12px;color:var(--hint-color);margin-top:4px">Лицо должно быть хорошо видно</div>
+    </label>
+    <div class="upload-preview">
+      <img id="photoPreview" alt="Предпросмотр" />
+    </div>
+  </div>
+
+  <!-- 🔹 Шаг 3: Предпросмотр результата -->
+  <div class="section hidden" id="step3">
+    <div class="section-title">3️⃣ Предпросмотр</div>
+    <div class="result-preview">
+      <video id="resultVideo" controls muted loop></video>
+      <div class="status" id="processingStatus">⏳ Обработка...</div>
+    </div>
+    <button class="btn btn-secondary" id="backBtn">↩️ Назад</button>
+  </div>
+
+  <!-- 🔹 Шаг 4: Оплата -->
+  <div class="section hidden" id="step4">
+    <div class="section-title">✅ Всё готово!</div>
+    <div style="text-align:center;margin:16px 0">
+      <div style="font-size:32px;margin-bottom:8px">🎬</div>
+      <div>Полное видео (5 минут) будет готово через ~10 минут</div>
+      <div style="color:var(--hint-color);font-size:14px;margin-top:8px">
+        Стоимость: <b>50 ⭐</b> (Telegram Stars)
+      </div>
+    </div>
+    <button class="btn" id="payBtn">💳 Оплатить и получить видео</button>
+  </div>
+
+  <!-- 🎯 Главная кнопка действия -->
+  <button class="btn hidden" id="nextBtn">Далее ➡️</button>
+
+  <script>
+    // 🚀 Инициализация Telegram WebApp
+    const tg = window.Telegram.WebApp;
+    tg.expand(); // Раскрыть на весь экран
+    tg.enableClosingConfirmation(); // Подтверждение закрытия
+
+    // 🎨 Применяем тему Телеграма
+    document.documentElement.style.setProperty('--tg-theme-bg-color', tg.themeParams.bg_color || '#fff');
+    document.documentElement.style.setProperty('--tg-theme-text-color', tg.themeParams.text_color || '#000');
+    document.documentElement.style.setProperty('--tg-theme-hint-color', tg.themeParams.hint_color || '#999');
+    document.documentElement.style.setProperty('--tg-theme-button-color', tg.themeParams.button_color || '#3390ec');
+    document.documentElement.style.setProperty('--tg-theme-button-text-color', tg.themeParams.button_text_color || '#fff');
+
+    // 📦 Данные: список видео-превью (заглушки)
+    // Позже здесь будут реальные ссылки на ваши 5-секундные видео
+    const videos = [
+      { id: 1, title: "Танец", preview: "https://www.w3schools.com/html/mov_bbb.mp4" },
+      { id: 2, title: "Спорт", preview: "https://www.w3schools.com/html/movie.mp4" },
+      { id: 3, title: "Природа", preview: "https://www.w3schools.com/html/mov_bbb.mp4" },
+      { id: 4, title: "Город", preview: "https://www.w3schools.com/html/movie.mp4" },
+      { id: 5, title: "Музыка", preview: "https://www.w3schools.com/html/mov_bbb.mp4" },
+      { id: 6, title: "Путешествие", preview: "https://www.w3schools.com/html/movie.mp4" },
+    ];
+
+    // 🎬 Отрисовка галереи видео
+    const videoGrid = document.getElementById('videoGrid');
+    let selectedVideo = null;
+
+    videos.forEach(video => {
+      const item = document.createElement('div');
+      item.className = 'video-item';
+      item.innerHTML = `
+        <video src="${video.preview}" muted loop></video>
+        <div class="play-icon">▶</div>
+      `;
+      item.addEventListener('click', () => {
+        // Снимаем выделение со всех
+        document.querySelectorAll('.video-item').forEach(el => el.classList.remove('selected'));
+        // Выделяем выбранное
+        item.classList.add('selected');
+        selectedVideo = video;
+        // Показываем следующий шаг
+        document.getElementById('step2').classList.remove('hidden');
+        document.getElementById('nextBtn').classList.add('hidden');
+        // Прокручиваем к загрузке фото
+        document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+      });
+      videoGrid.appendChild(item);
+    });
+
+    // 📸 Обработка загрузки фото
+    const photoInput = document.getElementById('photoInput');
+    const photoPreview = document.getElementById('photoPreview');
+    let uploadedPhoto = null;
+
+    photoInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      
+      // Показываем превью
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        photoPreview.src = event.target.result;
+        photoPreview.style.display = 'block';
+        uploadedPhoto = file;
+        
+        // Имитируем "обработку" превью (позже здесь будет реальный запрос к бэкенду)
+        document.getElementById('step3').classList.remove('hidden');
+        document.getElementById('processingStatus').textContent = '⏳ Генерация превью...';
+        
+        // Через 2 секунды показываем "результат" (заглушка)
+        setTimeout(() => {
+          document.getElementById('processingStatus').textContent = '✅ Готово!';
+          document.getElementById('resultVideo').src = selectedVideo.preview; // Пока то же видео
+          document.getElementById('resultVideo').style.display = 'block';
+          document.getElementById('step4').classList.remove('hidden');
+        }, 2000);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // 🔘 Кнопки навигации
+    document.getElementById('backBtn').addEventListener('click', () => {
+      document.getElementById('step4').classList.add('hidden');
+      document.getElementById('step3').classList.add('hidden');
+      document.getElementById('step2').scrollIntoView({ behavior: 'smooth' });
+    });
+
+    // 💳 Оплата (пока заглушка)
+    document.getElementById('payBtn').addEventListener('click', () => {
+      // Отправляем данные боту
+      tg.sendData(JSON.stringify({
+        action: 'order_video',
+        videoId: selectedVideo.id,
+        photoName: uploadedPhoto.name,
+        timestamp: new Date().toISOString()
+      }));
+      // Показываем сообщение
+      tg.showAlert('🎉 Заказ принят! Полное видео придёт в чат через ~10 минут.');
+    });
+
+    // 🎯 Готовность к работе
+    tg.ready();
+    console.log('✅ Mini App загружен');
+  </script>
+</body>
+</html>
